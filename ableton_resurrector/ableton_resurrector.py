@@ -10,7 +10,6 @@ import uuid
 import zlib
 
 from bs4 import BeautifulSoup
-from functools import partial
 
 SIZE_QUERY='kMDItemFSSize'
 NAME_QUERY='kMDItemDisplayName'
@@ -25,20 +24,15 @@ PATH_TYPE_EXTERNAL = 1
 PATH_TYPE_LIBRARY = 2
 PATH_TYPE_CURRENT_PROJECT = 3
 
-def flag_state(arg):
-    return arg in ['1', 1, 'True', 'TRUE', 'true']
-
-DEBUG=flag_state(os.environ.get('DEBUG'))
+DEBUG=os.environ['DEBUG'] in ['1', 1, 'True', 'TRUE', 'true']
 
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-
-def run(run_params):
-    ableton_project_path, use_symlinks = run_params
+def run(ableton_project_path):
     xml_path = decompress_ableton_als(ableton_project_path)
-    resurrected_xml_path = resurrect_ableton_xml(xml_path, use_symlinks)
+    resurrected_xml_path = resurrect_ableton_xml(xml_path)
 
 def decompress_ableton_als(als_path):
     print("RESURRECTING: {}".format(als_path))
@@ -51,8 +45,7 @@ def decompress_ableton_als(als_path):
         xml_file.write(gzip.decompress(open(als_path, 'rb').read()))
     return xml_path
 
-def resurrect_ableton_xml(xml_path, use_symlinks):
-
+def resurrect_ableton_xml(xml_path):
     soup = BeautifulSoup(open(xml_path).read(), "xml")
     project_dir = os.path.dirname(xml_path)
     resurrected_dir = "{}/{}".format(project_dir, RESURRECTED_DIR)
@@ -95,12 +88,7 @@ def resurrect_ableton_xml(xml_path, use_symlinks):
 
                 if file_size == match_size or file_size == 0:
                     try:
-                        if not use_symlinks:
-                            shutil.copy(match_path, resurrected_dir)
-                        else:
-                            resurrected_file = "{}/{}".format(resurrected_dir,
-                                                              name)
-                            os.symlink(match_path, resurrected_file)    
+                        shutil.copy(match_path, resurrected_dir)
                     except shutil.SameFileError:
                         pass
 
@@ -129,17 +117,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file')
     parser.add_argument('-l', '--list')
-    parser.add_argument('-s', '--symlinks')
     args = parser.parse_args()
 
-    use_symlinks = flag_state(args.symlinks)
-
     if args.file:
-        run((args.file, use_symlinks))
+        run(args.file)
     elif args.list:
         with multiprocessing.Pool(processes=12) as pool:
             paths = [f.strip() for f in open(args.list).readlines()]
-            pool.map(run, [(path, use_symlinks) for path in paths if path])
+            pool.map(run, paths)
 
 if __name__ == "__main__":
     main()
