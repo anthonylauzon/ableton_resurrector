@@ -24,7 +24,7 @@ PATH_TYPE_EXTERNAL = 1
 PATH_TYPE_LIBRARY = 2
 PATH_TYPE_CURRENT_PROJECT = 3
 
-DEBUG=os.environ['DEBUG'] in ['1', 1, 'True', 'TRUE', 'true']
+DEBUG=os.environ.get('DEBUG') in ['1', 1, 'True', 'TRUE', 'true']
 
 logging.basicConfig()
 logger = logging.getLogger()
