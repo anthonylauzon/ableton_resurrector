@@ -1,4 +1,5 @@
 import argparse
+import binascii
 import gzip
 import logging
 import os
@@ -6,8 +7,12 @@ import mdfind
 import multiprocessing
 import pickle
 import shutil
+import traceback
 import uuid
 import zlib
+
+
+
 
 from bs4 import BeautifulSoup
 
@@ -30,19 +35,37 @@ logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
+def is_gz_file(filepath):
+    with open(filepath, 'rb') as test_f:
+        return binascii.hexlify(test_f.read(2)) == b'1f8b'
+
 def run(ableton_project_path):
-    xml_path = decompress_ableton_als(ableton_project_path)
+    try:
+        xml_path = decompress_ableton_als(ableton_project_path)
+    except:
+        logging.error("ERROR_DECOMPRESSING: {}".format(ableton_project_path))
+        if DEBUG:
+            traceback.print_exc()
+        return 1
+    
     resurrected_xml_path = resurrect_ableton_xml(xml_path)
+
 
 def decompress_ableton_als(als_path):
     print("RESURRECTING: {}".format(als_path))
-
+    
     filename = '.'.join(os.path.basename(als_path).split('.')[:-1])
     dirname = os.path.dirname(als_path)
-
     xml_path = "{}/{}-{}.xml".format(dirname, filename, SUFFIX)
-    with open(xml_path, 'wb') as xml_file:
-        xml_file.write(gzip.decompress(open(als_path, 'rb').read()))
+
+    if is_gz_file(als_path):
+        tmp_gz = "/tmp/{}.gz".format(str(uuid.uuid4()))
+        shutil.copy(als_path, tmp_gz)
+        with open(xml_path, 'wb') as xml_file:
+            xml_file.write(gzip.decompress(open(tmp_gz, 'rb').read()))
+    else:
+        shutil.copy(als_path, xml_path)
+
     return xml_path
 
 def resurrect_ableton_xml(xml_path):
