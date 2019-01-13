@@ -14,8 +14,9 @@ about corrupting your projects.
 
 2. On the command line, run `ableton_resurrector -f [YOUR_PROJECT_FILE]`
 
-You can also pass the resurrector a list of projects by using the `-l` flag
-instead of `-f`.  This is useful for bulk resurrections.
+You can also pass the resurrector a file containing a list of .als file 
+locations by using the `-l` flag instead of `-f`.  This is useful for bulk 
+resurrections.
 
 ## Dependencies
 
