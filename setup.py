@@ -10,7 +10,7 @@ packages = find_packages(exclude=('tests', 'docs'))
 
 setup(
     name='ableton_resurrector',
-    version='0.0.1',
+    version='0.0.2',
     description='Ableton Resurrector',
     long_description=readme,
     author='Anthony Lauzon',
