@@ -1,5 +1,6 @@
 import argparse
 import gzip
+import logging
 import os
 import mdfind
 import multiprocessing
@@ -22,6 +23,12 @@ PATH_TYPE_MISSING = 0
 PATH_TYPE_EXTERNAL = 1
 PATH_TYPE_LIBRARY = 2
 PATH_TYPE_CURRENT_PROJECT = 3
+
+DEBUG=os.environ['DEBUG'] in ['1', 1, 'True', 'TRUE', 'true']
+
+logging.basicConfig()
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 def run(ableton_project_path):
     xml_path = decompress_ableton_als(ableton_project_path)
@@ -72,13 +79,14 @@ def resurrect_ableton_xml(xml_path):
             dirs = [e['Dir'] for e in path_elements]
             path = "{}/{}".format('/'.join(dirs), name)
 
-        if path and not os.path.exists(path):
-             name_matches = mdfind.query("kMDItemDisplayName='{}'".format(name))
-             for match_path in name_matches:
+        if path and not os.path.exists(path) or \
+            relative_path_type_value == PATH_TYPE_MISSING:
+            name_matches = mdfind.query("kMDItemDisplayName='{}'".format(name))
+            for match_path in name_matches:
                 match_file_stat = os.stat(match_path)
                 match_size = match_file_stat.st_size
 
-                if file_size == match_size:
+                if file_size == match_size or file_size == 0:
                     try:
                         shutil.copy(match_path, resurrected_dir)
                     except shutil.SameFileError:
@@ -97,6 +105,10 @@ def resurrect_ableton_xml(xml_path):
                     break
 
     os.remove(xml_path)
+
+    if DEBUG:
+        with open(xml_path, 'w') as als_file_xml:
+            als_file_xml.write(soup.prettify())
 
     with gzip.open(xml_path.replace('.xml', '.als'), 'wb') as als_file:
         als_file.write(soup.prettify().encode('utf-8'))
