@@ -14,9 +14,12 @@ about corrupting your projects.
 
 2. On the command line, run `ableton_resurrector -f [YOUR_PROJECT_FILE]`
 
+If you want to make symlinks instead of file copies, pass the `-s TRUE` flag.
 You can also pass the resurrector a file containing a list of .als file 
 locations by using the `-l` flag instead of `-f`.  This is useful for bulk 
 resurrections.
+
+
 
 ## Dependencies
 

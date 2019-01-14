@@ -11,9 +11,6 @@ import traceback
 import uuid
 import zlib
 
-
-
-
 from bs4 import BeautifulSoup
 
 SIZE_QUERY='kMDItemFSSize'
@@ -29,7 +26,10 @@ PATH_TYPE_EXTERNAL = 1
 PATH_TYPE_LIBRARY = 2
 PATH_TYPE_CURRENT_PROJECT = 3
 
-DEBUG=os.environ.get('DEBUG') in ['1', 1, 'True', 'TRUE', 'true']
+def flag_check(flag):
+    return flag in ['1', 1, 'True', 'TRUE', 'true']
+
+DEBUG=flag_check(os.environ.get('DEBUG'))
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -39,7 +39,8 @@ def is_gz_file(filepath):
     with open(filepath, 'rb') as test_f:
         return binascii.hexlify(test_f.read(2)) == b'1f8b'
 
-def run(ableton_project_path):
+def run(args):
+    ableton_project_path, symlink = args
     try:
         xml_path = decompress_ableton_als(ableton_project_path)
     except:
@@ -48,7 +49,7 @@ def run(ableton_project_path):
             traceback.print_exc()
         return 1
     
-    resurrected_xml_path = resurrect_ableton_xml(xml_path)
+    resurrected_xml_path = resurrect_ableton_xml(xml_path, symlink)
 
 
 def decompress_ableton_als(als_path):
@@ -68,7 +69,7 @@ def decompress_ableton_als(als_path):
 
     return xml_path
 
-def resurrect_ableton_xml(xml_path):
+def resurrect_ableton_xml(xml_path, symlink):
     soup = BeautifulSoup(open(xml_path).read(), "xml")
     project_dir = os.path.dirname(xml_path)
     resurrected_dir = "{}/{}".format(project_dir, RESURRECTED_DIR)
@@ -110,10 +111,14 @@ def resurrect_ableton_xml(xml_path):
                 match_size = match_file_stat.st_size
 
                 if file_size == match_size or file_size == 0:
-                    try:
-                        shutil.copy(match_path, resurrected_dir)
-                    except shutil.SameFileError:
-                        pass
+                    if symlink:
+                        os.symlink(match_path, "{}/{}".format(resurrected_dir,
+                                                              name))
+                    else:
+                        try:
+                            shutil.copy(match_path, resurrected_dir)
+                        except shutil.SameFileError:
+                            pass
 
                     relative_path.clear()
                     new_relative_path_element = \
@@ -140,14 +145,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file')
     parser.add_argument('-l', '--list')
+    parser.add_argument('-s', '--symlink')
     args = parser.parse_args()
 
+    symlink = flag_check(args.symlink)
+
     if args.file:
-        run(args.file)
+        run((args.file, args.symlink))
     elif args.list:
         with multiprocessing.Pool(processes=12) as pool:
             paths = [f.strip() for f in open(args.list).readlines()]
-            pool.map(run, paths)
+            pool.map(run, [(path, symlink) for path in paths])
 
 if __name__ == "__main__":
     main()
