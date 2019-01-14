@@ -25,6 +25,7 @@ PATH_TYPE_MISSING = 0
 PATH_TYPE_EXTERNAL = 1
 PATH_TYPE_LIBRARY = 2
 PATH_TYPE_CURRENT_PROJECT = 3
+SAFE_PATH_ID = 1000
 
 def flag_check(flag):
     return flag in ['1', 1, 'True', 'TRUE', 'true']
@@ -48,9 +49,15 @@ def run(args):
         if DEBUG:
             traceback.print_exc()
         return 1
-    
-    resurrected_xml_path = resurrect_ableton_xml(xml_path, symlink)
+    try:
+        resurrected_xml_path = resurrect_ableton_xml(xml_path, symlink)
+    except:
+        logging.error("ERROR_RESURRECTING: {}".format(ableton_project_path))
+        if DEBUG:
+            traceback.print_exc()
+        return 1
 
+    return 0
 
 def decompress_ableton_als(als_path):
     print("RESURRECTING: {}".format(als_path))
@@ -76,10 +83,14 @@ def resurrect_ableton_xml(xml_path, symlink):
 
     os.makedirs(resurrected_dir, exist_ok=True)
 
-    relative_path_ids = []
+    max_relative_path_id = 0
     for relative_path_element in soup.find_all('RelativePathElement'):
-        relative_path_ids.append(int(relative_path_element['Id']))
-    new_relative_path_id = max(relative_path_ids) + 1
+        if relative_path_element.get('Id') and \
+            int(relative_path_element['Id']) > max_relative_path_id:
+            max_relative_path_id = int(relative_path_element['Id'])
+
+
+    new_relative_path_id = max_relative_path_id +  1
 
     for sample_ref in soup.find_all('SampleRef'):
         relative_path_type = sample_ref.find('RelativePathType')
@@ -112,8 +123,11 @@ def resurrect_ableton_xml(xml_path, symlink):
 
                 if file_size == match_size or file_size == 0:
                     if symlink:
-                        os.symlink(match_path, "{}/{}".format(resurrected_dir,
-                                                              name))
+                        try:
+                            os.symlink(match_path, 
+                                       "{}/{}".format(resurrected_dir, name))
+                        except FileExistsError:
+                            pass
                     else:
                         try:
                             shutil.copy(match_path, resurrected_dir)
